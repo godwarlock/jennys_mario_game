@@ -14,6 +14,7 @@
   const audioCtx = (window.AudioContext || window.webkitAudioContext)
     ? new (window.AudioContext || window.webkitAudioContext)() : null;
   const audio = Audio.init(audioCtx);
+  audio._enabled = true;
 
   let storage = null;
   try { storage = window.localStorage; } catch (_) {}
@@ -108,7 +109,175 @@
   }
 
   function updatePlaying(dt) {
-    // implemented in Task 13
+    const lvl = state.level;
+    const p = state.player;
+    state.elapsedSec = (performance.now() - state.startTime) / 1000;
+
+    const left  = keys['arrowleft']  || keys['a'];
+    const right = keys['arrowright'] || keys['d'];
+    const jump  = keys['arrowup']    || keys['w'] || keys[' '];
+    if (keyJustPressed['escape'] || keyJustPressed['p']) { state.mode = 'PAUSED'; return; }
+    if (keyJustPressed['m']) { audio._enabled = !audio._enabled; audio.setEnabled(audio._enabled); }
+    if (keyJustPressed['r']) { startLevel(state.currentLevel); return; }
+
+    if (left)  { p.vx -= MOVE_ACC; p.facing = -1; }
+    if (right) { p.vx += MOVE_ACC; p.facing = 1; }
+    if (!left && !right) p.vx *= FRICTION;
+    p.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, p.vx));
+    if (Math.abs(p.vx) < 0.05) p.vx = 0;
+
+    if (jump && p.onGround) {
+      p.vy = p.jumpBootMs > 0 ? JUMP_V_BOOSTED : JUMP_V;
+      p.onGround = false;
+      audio.jump();
+      FX.spawnBurst(state.particles, p.x + p.w/2, p.y + p.h, 3, '#eee', { size: 2, speed: 15, life: 0.3 });
+    }
+
+    p.vy += GRAVITY;
+    if (p.vy > 18) p.vy = 18;
+
+    p.x += p.vx;
+    if (p.x < 0) p.x = 0;
+    if (p.x + p.w > lvl.width) p.x = lvl.width - p.w;
+    for (const plat of lvl.platforms) {
+      if (rectsOverlap(p, plat)) {
+        if (p.vx > 0) p.x = plat.x - p.w;
+        else if (p.vx < 0) p.x = plat.x + plat.w;
+        p.vx = 0;
+      }
+    }
+
+    p.y += p.vy;
+    const wasOnGround = p.onGround;
+    p.onGround = false;
+    for (const plat of lvl.platforms) {
+      if (rectsOverlap(p, plat)) {
+        if (p.vy > 0) { p.y = plat.y - p.h; p.vy = 0; p.onGround = true; }
+        else if (p.vy < 0) { p.y = plat.y + plat.h; p.vy = 0; }
+      }
+    }
+    if (!wasOnGround && p.onGround) {
+      FX.spawnBurst(state.particles, p.x + p.w/2, p.y + p.h, 3, '#eee', { size: 2, speed: 15, life: 0.3 });
+    }
+
+    if (Math.abs(p.vx) > 0.5 && p.onGround) p.walkAnim += Math.abs(p.vx) * 0.15;
+
+    Entities.tickJumpBoot(p, dt);
+
+    if (p.y > H + 100) { loseLife('Jenny 掉下去啦…'); return; }
+
+    for (const e of lvl.enemies) {
+      if (!e.alive) { if (e.squashTimer > 0) e.squashTimer--; continue; }
+      if (e.type === 'slime') Entities.updateSlime(e);
+      else if (e.type === 'bee') Entities.updateBee(e, dt);
+      else if (e.type === 'dasher') Entities.updateDasher(e, dt, p);
+    }
+
+    for (const e of lvl.enemies) {
+      if (!e.alive) continue;
+      if (rectsOverlap(p, e)) {
+        const playerBottom = p.y + p.h;
+        const stompable = p.vy > 0 && playerBottom - e.y < 18;
+        if (stompable) {
+          e.alive = false; e.squashTimer = 30;
+          p.vy = JUMP_V * 0.6;
+          state.hearts += 2;
+          audio.stomp();
+          const color = e.type === 'bee' ? '#ffd166' : (e.type === 'dasher' ? '#a05cff' : '#8ee36e');
+          FX.spawnBurst(state.particles, e.x + e.w/2, e.y + e.h/2, 8, color, { size: 3, speed: 30, life: 0.6 });
+        } else if (p.invuln <= 0) {
+          if (Entities.consumeShield(p)) {
+            p.invuln = 60;
+            audio.hurt();
+            state.shake = FX.makeShake(4, 0.15);
+          } else {
+            loseLife(e.type === 'bee' ? '被蜜蜂撞到啦！' : e.type === 'dasher' ? '被魔王撞到啦！' : '被史莱姆撞到啦！');
+            return;
+          }
+        }
+      }
+    }
+
+    for (const h of lvl.hearts) {
+      if (h.taken) continue;
+      const hb = { x: h.x - 10, y: h.y - 10, w: 20, h: 20 };
+      if (rectsOverlap(p, hb)) {
+        h.taken = true;
+        state.hearts += 1;
+        state.save.totalHearts += 1;
+        audio.heart();
+        FX.spawnBurst(state.particles, h.x, h.y, 6, '#ff3d7f', { size: 3, speed: 30, life: 0.6 });
+        throttledSave();
+      }
+    }
+
+    for (const item of lvl.pickups) {
+      if (item.taken) continue;
+      const ib = { x: item.x - 14, y: item.y - 14, w: 28, h: 28 };
+      if (rectsOverlap(p, ib)) {
+        item.taken = true;
+        if (item.type === 'shield') { Entities.applyShield(p); audio.heart(); }
+        else if (item.type === 'jumpboot') { Entities.applyJumpBoot(p); audio.heart(); }
+        FX.spawnBurst(state.particles, item.x, item.y, 8, '#fff', { size: 3, speed: 30, life: 0.5 });
+      }
+    }
+
+    const fb = { x: lvl.flag.x, y: lvl.flag.y, w: 16, h: 160 };
+    if (rectsOverlap(p, fb)) { winLevel(); return; }
+
+    if (p.invuln > 0) p.invuln--;
+
+    state.cameraX = p.x - W / 2 + p.w / 2;
+    state.cameraX = Math.max(0, Math.min(lvl.width - W, state.cameraX));
+
+    FX.updateParticles(state.particles, dt);
+    FX.tickShake(state.shake, dt);
+    FX.tickFlash(state.flash, dt);
+  }
+
+  function throttledSave() {
+    if (state.saveThrottleMs > 0) return;
+    state.saveThrottleMs = 1000;
+    Storage.save(storage, state.save);
+    setTimeout(() => { state.saveThrottleMs = 0; }, 1000);
+  }
+
+  function loseLife(reason) {
+    state.lives--;
+    audio.hurt();
+    state.shake = FX.makeShake(6, 0.2);
+    state.flash = FX.makeFlash('#ff0000', 0.3);
+    if (state.lives <= 0) {
+      state.mode = 'LOSE';
+      state.highlightIndex = 0;
+    } else {
+      const p = state.player;
+      p.x = 60;
+      p.y = state.level.groundY - p.h;
+      p.vx = 0; p.vy = 0;
+      p.invuln = 90;
+      p.shield = false;
+      p.jumpBootMs = 0;
+      state.cameraX = 0;
+    }
+  }
+
+  function winLevel() {
+    const t = (performance.now() - state.startTime) / 1000;
+    state.winTime = t;
+    state.justWon = true;
+    const idx = state.currentLevel - 1;
+    const prev = state.save.bestTimes[idx];
+    state.newBest = prev == null || t < prev;
+    if (state.newBest) state.save.bestTimes[idx] = t;
+    if (state.save.unlocked <= state.currentLevel) {
+      state.save.unlocked = Math.min(3, state.currentLevel + 1);
+    }
+    Storage.save(storage, state.save);
+    audio.win();
+    state.flash = FX.makeFlash('#ffd166', 0.6);
+    state.mode = 'WIN';
+    state.highlightIndex = 0;
   }
 
   function render() {
