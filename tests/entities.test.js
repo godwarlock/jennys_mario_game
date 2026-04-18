@@ -36,3 +36,27 @@ test('makeHeart is not taken', () => {
   assert.strictEqual(h.x, 50);
   assert.strictEqual(h.taken, false);
 });
+
+test('makeBee initializes with base Y and phase', () => {
+  const b = Entities.makeBee(100, 200, 50, 200);
+  assert.strictEqual(b.type, 'bee');
+  assert.strictEqual(b.baseY, 200);
+  assert.strictEqual(b.leftBound, 50);
+  assert.strictEqual(b.rightBound, 200);
+  assert.strictEqual(b.alive, true);
+});
+
+test('updateBee oscillates Y around baseY', () => {
+  const b = Entities.makeBee(100, 200, 50, 200);
+  const y0 = b.y;
+  Entities.updateBee(b, 0.25);
+  assert.notStrictEqual(b.y, y0);
+  assert(Math.abs(b.y - b.baseY) <= 20.01, 'Y should stay within amplitude ±20');
+});
+
+test('updateBee bounces at horizontal boundaries', () => {
+  const b = Entities.makeBee(49, 200, 50, 200);
+  b.vx = -0.8;
+  Entities.updateBee(b, 0.016);
+  assert(b.vx > 0);
+});

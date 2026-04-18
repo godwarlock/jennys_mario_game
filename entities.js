@@ -36,7 +36,29 @@
     return { x, y, taken: false };
   }
 
-  const API = { makePlayer, makeSlime, updateSlime, makeHeart };
+  function makeBee(x, baseY, leftBound, rightBound) {
+    return {
+      type: 'bee',
+      x, y: baseY, w: 28, h: 24,
+      baseY,
+      vx: 0.8,
+      leftBound, rightBound,
+      phase: Math.random() * Math.PI * 2,
+      alive: true,
+      squashTimer: 0,
+    };
+  }
+
+  function updateBee(b, dt) {
+    if (!b.alive) { b.squashTimer--; return; }
+    b.x += b.vx;
+    if (b.x < b.leftBound)        { b.x = b.leftBound;        b.vx *= -1; }
+    if (b.x + b.w > b.rightBound) { b.x = b.rightBound - b.w; b.vx *= -1; }
+    b.phase += dt * (Math.PI * 2 / 1.5);
+    b.y = b.baseY + Math.sin(b.phase) * 20;
+  }
+
+  const API = { makePlayer, makeSlime, updateSlime, makeHeart, makeBee, updateBee };
   if (typeof module !== 'undefined') module.exports = API;
   else global.Entities = API;
 })(typeof window !== 'undefined' ? window : globalThis);
