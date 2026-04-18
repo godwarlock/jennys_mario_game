@@ -34,6 +34,28 @@ test('level 1 all entities within [0, width]', () => {
   }
 });
 
+test('level 2 — forest — has 4 slimes, 4 bees, 0 dashers, 18 hearts, 1 shield, 0 jumpboots', () => {
+  const l = Levels.build(2);
+  const enemiesByType = countByType(l.enemies);
+  const pickupsByType = countByType(l.pickups);
+  assert.strictEqual(l.name, '森林');
+  assert.strictEqual(l.theme, 'forest');
+  assert.strictEqual(l.width, 3600);
+  assert.strictEqual(l.hearts.length, 18);
+  assert.strictEqual(enemiesByType.slime || 0, 4);
+  assert.strictEqual(enemiesByType.bee   || 0, 4);
+  assert.strictEqual(enemiesByType.dasher || 0, 0);
+  assert.strictEqual(pickupsByType.shield   || 0, 1);
+  assert.strictEqual(pickupsByType.jumpboot || 0, 0);
+});
+
+test('level 2 all entities within [0, width]', () => {
+  const l = Levels.build(2);
+  for (const e of l.enemies) assert(e.x >= 0 && e.x + e.w <= l.width);
+  for (const h of l.hearts) assert(h.x >= 0 && h.x <= l.width);
+  for (const p of l.pickups) assert(p.x >= 0 && p.x <= l.width);
+});
+
 function countByType(arr) {
   const out = {};
   for (const item of arr) out[item.type] = (out[item.type] || 0) + 1;
