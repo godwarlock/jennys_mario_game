@@ -36,6 +36,8 @@
     flash: { color: '#f00', duration: 0, timeLeft: 0 },
     highlightIndex: 0,
     saveThrottleMs: 0,
+    saveDirty: false,
+    pausedAtMs: 0,
     justWon: false,
     winTime: 0,
     newBest: false,
@@ -116,7 +118,11 @@
     const left  = keys['arrowleft']  || keys['a'];
     const right = keys['arrowright'] || keys['d'];
     const jump  = keys['arrowup']    || keys['w'] || keys[' '];
-    if (keyJustPressed['escape'] || keyJustPressed['p']) { state.mode = 'PAUSED'; return; }
+    if (keyJustPressed['escape'] || keyJustPressed['p']) {
+      state.mode = 'PAUSED';
+      state.pausedAtMs = performance.now();
+      return;
+    }
     if (keyJustPressed['m']) { audio._enabled = !audio._enabled; audio.setEnabled(audio._enabled); }
     if (keyJustPressed['r']) { startLevel(state.currentLevel); return; }
 
@@ -231,15 +237,20 @@
     state.cameraX = Math.max(0, Math.min(lvl.width - W, state.cameraX));
 
     FX.updateParticles(state.particles, dt);
-    FX.tickShake(state.shake, dt);
-    FX.tickFlash(state.flash, dt);
   }
 
   function throttledSave() {
-    if (state.saveThrottleMs > 0) return;
+    if (state.saveThrottleMs > 0) {
+      state.saveDirty = true;
+      return;
+    }
     state.saveThrottleMs = 1000;
+    state.saveDirty = false;
     Storage.save(storage, state.save);
-    setTimeout(() => { state.saveThrottleMs = 0; }, 1000);
+    setTimeout(() => {
+      state.saveThrottleMs = 0;
+      if (state.saveDirty) throttledSave();
+    }, 1000);
   }
 
   function loseLife(reason) {
@@ -706,7 +717,12 @@
         }
       }
     } else if (state.mode === 'PAUSED') {
-      if (keyJustPressed['escape'] || keyJustPressed['p']) { state.mode = 'PLAYING'; state.lastFrameMs = performance.now(); }
+      if (keyJustPressed['escape'] || keyJustPressed['p']) {
+        const now = performance.now();
+        state.startTime += now - state.pausedAtMs;
+        state.lastFrameMs = now;
+        state.mode = 'PLAYING';
+      }
     } else if (state.mode === 'WIN' || state.mode === 'LOSE') {
       const n = (state.mode === 'WIN') ? 3 : 2;
       if (keyJustPressed['arrowright'] || keyJustPressed['d']) state.highlightIndex = Math.min(n-1, state.highlightIndex + 1);
@@ -729,6 +745,10 @@
     state.lastFrameMs = now;
     handleMenuKeys();
     if (state.mode === 'PLAYING') updatePlaying(dt);
+    if (state.mode !== 'PAUSED') {
+      FX.tickShake(state.shake, dt);
+      FX.tickFlash(state.flash, dt);
+    }
     render();
     keyJustPressed = {};
     requestAnimationFrame(loop);
