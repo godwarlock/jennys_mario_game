@@ -309,10 +309,379 @@
     }
   }
 
+  function cloudPuff(x, y, s) {
+    ctx.beginPath();
+    ctx.arc(x,        y,        18 * s, 0, Math.PI * 2);
+    ctx.arc(x + 18*s, y - 6*s,  20 * s, 0, Math.PI * 2);
+    ctx.arc(x + 36*s, y,        16 * s, 0, Math.PI * 2);
+    ctx.arc(x + 18*s, y + 6*s,  16 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawHeart(cx, cy, size, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.4);
+    ctx.bezierCurveTo(size, -size * 0.3, size * 0.6, -size * 1.1, 0, -size * 0.3);
+    ctx.bezierCurveTo(-size * 0.6, -size * 1.1, -size, -size * 0.3, 0, size * 0.4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(-size * 0.3, -size * 0.4, size * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFlowers() {
+    for (const f of state.level.flowers) {
+      const x = f.x - state.cameraX;
+      if (x < -10 || x > W + 10) continue;
+      ctx.fillStyle = f.c;
+      ctx.beginPath();
+      ctx.arc(x,     f.y - 2, 3, 0, Math.PI * 2);
+      ctx.arc(x - 3, f.y,     3, 0, Math.PI * 2);
+      ctx.arc(x + 3, f.y,     3, 0, Math.PI * 2);
+      ctx.arc(x,     f.y + 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(x, f.y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawPlatforms() {
+    for (const p of state.level.platforms) {
+      const x = p.x - state.cameraX;
+      if (x + p.w < 0 || x > W) continue;
+      if (p.brick) {
+        ctx.fillStyle = '#ff8fc1';
+        ctx.fillRect(x, p.y, p.w, p.h);
+        ctx.strokeStyle = '#c43d7a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 1, p.y + 1, p.w - 2, p.h - 2);
+        ctx.beginPath();
+        ctx.moveTo(x, p.y + p.h / 2);
+        ctx.lineTo(x + p.w, p.y + p.h / 2);
+        ctx.stroke();
+        for (let i = 0; i < p.w; i += 32) {
+          ctx.beginPath();
+          ctx.moveTo(x + i + 16, p.y);
+          ctx.lineTo(x + i + 16, p.y + p.h / 2);
+          ctx.moveTo(x + i, p.y + p.h / 2);
+          ctx.lineTo(x + i, p.y + p.h);
+          ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle = '#7ec850';
+        ctx.fillRect(x, p.y, p.w, 10);
+        ctx.fillStyle = '#c08c5a';
+        ctx.fillRect(x, p.y + 10, p.w, p.h - 10);
+        ctx.fillStyle = '#a07040';
+        for (let i = 0; i < p.w; i += 32) {
+          ctx.fillRect(x + i + 6, p.y + 18, 4, 4);
+          ctx.fillRect(x + i + 18, p.y + 30, 4, 4);
+        }
+      }
+    }
+  }
+
+  function drawHearts() {
+    for (const h of state.level.hearts) {
+      if (h.taken) continue;
+      const x = h.x - state.cameraX;
+      if (x < -20 || x > W + 20) continue;
+      const wob = Math.sin(performance.now() / 300 + h.x) * 2;
+      drawHeart(x, h.y + wob, 9, '#ff3d7f');
+    }
+  }
+
+  function drawPickups() {
+    for (const item of state.level.pickups) {
+      if (item.taken) continue;
+      const x = item.x - state.cameraX;
+      if (x < -30 || x > W + 30) continue;
+      const wob = Math.sin(performance.now() / 300 + item.x) * 2;
+      if (item.type === 'shield') {
+        ctx.strokeStyle = 'rgba(255, 100, 180, 0.7)';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(x, item.y + wob, 14, 0, Math.PI * 2); ctx.stroke();
+        drawHeart(x, item.y + wob, 10, '#ff3d7f');
+      } else if (item.type === 'jumpboot') {
+        ctx.fillStyle = '#ffd166';
+        ctx.fillRect(x - 10, item.y + wob - 6, 20, 10);
+        ctx.fillRect(x + 4,  item.y + wob - 12, 10, 8);
+        ctx.fillStyle = '#c49a20';
+        ctx.fillRect(x - 10, item.y + wob + 3, 20, 2);
+      }
+    }
+  }
+
+  function drawEnemies() {
+    for (const e of state.level.enemies) {
+      const x = e.x - state.cameraX;
+      if (x < -50 || x > W + 50) continue;
+      if (!e.alive) {
+        if (e.squashTimer > 0) {
+          ctx.fillStyle = '#7a3d99';
+          ctx.fillRect(x - 2, e.y + e.h - 8, e.w + 4, 8);
+        }
+        continue;
+      }
+      if (e.type === 'bee') {
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.ellipse(x + e.w/2, e.y + e.h/2, e.w/2, e.h/2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x + 6,  e.y + 8, 4, e.h - 12);
+        ctx.fillRect(x + 16, e.y + 8, 4, e.h - 12);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.beginPath();
+        ctx.ellipse(x + 4,    e.y - 2, 7, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + e.w - 4, e.y - 2, 7, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x + e.w/2 - 4, e.y + 6, 2, 2);
+        ctx.fillRect(x + e.w/2 + 2, e.y + 6, 2, 2);
+        continue;
+      }
+      if (e.type === 'dasher') {
+        const charging = e.state === 'CHARGING';
+        ctx.fillStyle = charging ? '#8b2a99' : '#a05cc8';
+        ctx.fillRect(x, e.y, e.w, e.h);
+        ctx.fillStyle = '#4a1c66';
+        ctx.beginPath();
+        ctx.moveTo(x + 4, e.y);     ctx.lineTo(x + 8,  e.y - 8); ctx.lineTo(x + 12, e.y); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 20, e.y);    ctx.lineTo(x + 24, e.y - 8); ctx.lineTo(x + 28, e.y); ctx.fill();
+        ctx.fillStyle = charging ? '#ff2030' : '#fff';
+        ctx.fillRect(x + 8,  e.y + 12, 4, 4);
+        ctx.fillRect(x + 20, e.y + 12, 4, 4);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x + 10, e.y + 24, 3, 5);
+        ctx.fillRect(x + 19, e.y + 24, 3, 5);
+        continue;
+      }
+      // Slime (default)
+      ctx.fillStyle = '#a05cc8';
+      ctx.beginPath();
+      ctx.ellipse(x + e.w/2, e.y + e.h/2 + 2, e.w/2, e.h/2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(x + e.w/2 - 5, e.y + e.h/2 - 4, 5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(x + 9,  e.y + 14, 4, 0, Math.PI * 2);
+      ctx.arc(x + 21, e.y + 14, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      const pupOffset = e.vx > 0 ? 1 : -1;
+      ctx.beginPath();
+      ctx.arc(x + 9 + pupOffset,  e.y + 14, 2, 0, Math.PI * 2);
+      ctx.arc(x + 21 + pupOffset, e.y + 14, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4a1c66';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x + e.w/2, e.y + 22, 4, 0, Math.PI);
+      ctx.stroke();
+    }
+  }
+
+  function drawFlag() {
+    const f = state.level.flag;
+    const x = f.x - state.cameraX;
+    if (state.level.theme === 'castle') {
+      ctx.fillStyle = '#3b2a55';
+      ctx.fillRect(x - 20, f.y - 20, 60, 180);
+      ctx.fillStyle = '#6a4b8c';
+      ctx.beginPath();
+      ctx.moveTo(x - 20, f.y - 20); ctx.lineTo(x + 10, f.y - 60); ctx.lineTo(x + 40, f.y - 20);
+      ctx.closePath(); ctx.fill();
+      drawHeart(x + 10, f.y + 70, 12, '#ff3d7f');
+      return;
+    }
+    ctx.fillStyle = '#dcdcdc';
+    ctx.fillRect(x, f.y, 4, 160);
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath(); ctx.arc(x + 2, f.y - 2, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff5fa2';
+    ctx.beginPath();
+    ctx.moveTo(x + 4, f.y + 6); ctx.lineTo(x + 60, f.y + 18); ctx.lineTo(x + 4, f.y + 30);
+    ctx.closePath(); ctx.fill();
+    drawHeart(x + 28, f.y + 18, 6, '#fff');
+  }
+
+  function drawPlayer() {
+    const player = state.player;
+    const px = player.x - state.cameraX;
+    const py = player.y;
+    if (player.invuln > 0 && Math.floor(player.invuln / 5) % 2 === 0) return;
+
+    const bob = player.onGround ? Math.sin(player.walkAnim) * 1.5 : 0;
+    const facing = player.facing;
+
+    ctx.save();
+    ctx.translate(px + player.w / 2, py);
+    ctx.scale(facing, 1);
+    ctx.translate(-player.w / 2, 0);
+
+    // Legs
+    ctx.fillStyle = '#ffd9b3';
+    const legSwing = player.onGround ? Math.sin(player.walkAnim) * 3 : 2;
+    ctx.fillRect(6,  32, 5, 8 - Math.abs(legSwing));
+    ctx.fillRect(15, 32, 5, 8 - Math.abs(legSwing) * 0.5);
+    // Shoes
+    ctx.fillStyle = '#8b3a62';
+    ctx.fillRect(5,  38 - Math.abs(legSwing), 7, 3);
+    ctx.fillRect(14, 38 - Math.abs(legSwing) * 0.5, 7, 3);
+
+    // Pink dress (skirt)
+    ctx.fillStyle = '#ff5fa2';
+    ctx.beginPath();
+    ctx.moveTo(2, 34);
+    ctx.lineTo(24, 34);
+    ctx.lineTo(20, 22);
+    ctx.lineTo(6, 22);
+    ctx.closePath();
+    ctx.fill();
+    // Dress highlight
+    ctx.fillStyle = '#ff8fc1';
+    ctx.fillRect(8, 26, 10, 2);
+
+    // Body / torso
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(7, 18 + bob, 12, 8);
+    // Heart on chest
+    drawHeart(13, 22 + bob, 2.6, '#ff3d7f');
+
+    // Arms
+    ctx.fillStyle = '#ffd9b3';
+    const armSwing = player.onGround ? Math.sin(player.walkAnim + Math.PI) * 2 : -2;
+    ctx.fillRect(2,  18 + bob + armSwing, 5, 8);
+    ctx.fillRect(19, 18 + bob - armSwing, 5, 8);
+
+    // Head
+    ctx.fillStyle = '#ffd9b3';
+    ctx.beginPath();
+    ctx.arc(13, 12 + bob, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair (brown, pigtails)
+    ctx.fillStyle = '#7a4a2a';
+    ctx.beginPath();
+    ctx.arc(13, 8 + bob, 8, Math.PI, 0);
+    ctx.fill();
+    ctx.fillRect(5, 8 + bob, 16, 4);
+    ctx.beginPath();
+    ctx.arc(3,  14 + bob, 4, 0, Math.PI * 2);
+    ctx.arc(23, 14 + bob, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Pink bow
+    ctx.fillStyle = '#ff3d7f';
+    ctx.fillRect(9, 4 + bob, 8, 4);
+    ctx.beginPath();
+    ctx.moveTo(9, 6 + bob);
+    ctx.lineTo(5, 4 + bob);
+    ctx.lineTo(5, 8 + bob);
+    ctx.closePath();
+    ctx.moveTo(17, 6 + bob);
+    ctx.lineTo(21, 4 + bob);
+    ctx.lineTo(21, 8 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#222';
+    ctx.fillRect(10, 12 + bob, 2, 2);
+    ctx.fillRect(15, 12 + bob, 2, 2);
+    // Cheeks
+    ctx.fillStyle = 'rgba(255, 100, 150, 0.5)';
+    ctx.beginPath();
+    ctx.arc(9,  15 + bob, 1.5, 0, Math.PI * 2);
+    ctx.arc(17, 15 + bob, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Smile
+    ctx.strokeStyle = '#a64080';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(13, 15 + bob, 2, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+
+    if (state.player.shield) {
+      ctx.strokeStyle = 'rgba(255, 100, 180, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(13, 8 + bob, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   function renderWorld() {
-    // implemented in Task 13
-    ctx.fillStyle = '#87ceeb';
+    const lvl = state.level;
+    const off = FX.shakeOffset(state.shake);
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    if (lvl.theme === 'forest') {
+      grad.addColorStop(0, '#7fb07a'); grad.addColorStop(0.6, '#b8d8a0'); grad.addColorStop(1, '#ffe4f0');
+    } else if (lvl.theme === 'castle') {
+      grad.addColorStop(0, '#3b2a55'); grad.addColorStop(0.6, '#6a4b8c'); grad.addColorStop(1, '#d9b3e0');
+    } else {
+      grad.addColorStop(0, '#a3d8ff'); grad.addColorStop(0.6, '#cdebff'); grad.addColorStop(1, '#ffe4f0');
+    }
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.translate(off.x, off.y);
+
+    if (lvl.theme === 'castle') {
+      ctx.fillStyle = '#fff7cc';
+      ctx.beginPath(); ctx.arc(660, 80, 34, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3b2a55';
+      ctx.beginPath(); ctx.arc(672, 72, 30, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      for (const c of lvl.clouds) {
+        const sx = c.x - state.cameraX * 0.4;
+        const x = ((sx % (lvl.width + 200)) + lvl.width + 200) % (lvl.width + 200);
+        cloudPuff(x, c.y, c.s);
+      }
+    }
+
+    if (lvl.theme !== 'castle') {
+      const hue1 = lvl.theme === 'forest' ? '#5a9e6a' : '#bde7a3';
+      const hue2 = lvl.theme === 'forest' ? '#3d7a4d' : '#9ed68a';
+      ctx.fillStyle = hue1;
+      for (let i = 0; i < 10; i++) {
+        const cx = i * 480 - (state.cameraX * 0.5) % 480;
+        ctx.beginPath(); ctx.arc(cx, lvl.groundY + 20, 180, Math.PI, 0); ctx.fill();
+      }
+      ctx.fillStyle = hue2;
+      for (let i = 0; i < 10; i++) {
+        const cx = i * 360 - (state.cameraX * 0.7) % 360 + 120;
+        ctx.beginPath(); ctx.arc(cx, lvl.groundY + 30, 140, Math.PI, 0); ctx.fill();
+      }
+    }
+
+    drawFlowers();
+    drawPlatforms();
+    drawHearts();
+    drawPickups();
+    drawEnemies();
+    drawFlag();
+    drawPlayer();
+    FX.drawParticles(ctx, state.particles, state.cameraX);
+
+    ctx.restore();
+    FX.drawFlash(ctx, state.flash, W, H);
   }
 
   function loop(now) {
