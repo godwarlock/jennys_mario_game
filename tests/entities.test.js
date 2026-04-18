@@ -60,3 +60,48 @@ test('updateBee bounces at horizontal boundaries', () => {
   Entities.updateBee(b, 0.016);
   assert(b.vx > 0);
 });
+
+test('makeDasher starts in PATROL state', () => {
+  const d = Entities.makeDasher(100, 200, 50, 400);
+  assert.strictEqual(d.type, 'dasher');
+  assert.strictEqual(d.state, 'PATROL');
+  assert.strictEqual(d.baseSpeed, 1);
+});
+
+test('updateDasher transitions PATROL → CHARGING when player nearby', () => {
+  const d = Entities.makeDasher(200, 200, 50, 400);
+  Entities.updateDasher(d, 0.016, { x: 250, y: 200 });
+  assert.strictEqual(d.state, 'CHARGING');
+});
+
+test('updateDasher stays PATROL when player far', () => {
+  const d = Entities.makeDasher(200, 200, 50, 400);
+  Entities.updateDasher(d, 0.016, { x: 600, y: 200 });
+  assert.strictEqual(d.state, 'PATROL');
+});
+
+test('updateDasher CHARGING → COOLDOWN after 1.2s', () => {
+  const d = Entities.makeDasher(200, 200, 50, 400);
+  d.state = 'CHARGING';
+  d.stateMs = 0;
+  Entities.updateDasher(d, 1.3, { x: 250, y: 200 });
+  assert.strictEqual(d.state, 'COOLDOWN');
+});
+
+test('updateDasher COOLDOWN → PATROL after 1s', () => {
+  const d = Entities.makeDasher(200, 200, 50, 400);
+  d.state = 'COOLDOWN';
+  d.stateMs = 0;
+  Entities.updateDasher(d, 1.1, { x: 999, y: 200 });
+  assert.strictEqual(d.state, 'PATROL');
+});
+
+test('updateDasher CHARGING moves at 3x baseSpeed', () => {
+  const d = Entities.makeDasher(200, 200, 50, 400);
+  d.state = 'CHARGING';
+  d.vx = 1;
+  d.stateMs = 0;
+  const x0 = d.x;
+  Entities.updateDasher(d, 0.016, { x: 300, y: 200 });
+  assert(d.x - x0 >= 2.9 && d.x - x0 <= 3.1, `expected ~3 px movement, got ${d.x - x0}`);
+});

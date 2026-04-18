@@ -58,7 +58,58 @@
     b.y = b.baseY + Math.sin(b.phase) * 20;
   }
 
-  const API = { makePlayer, makeSlime, updateSlime, makeHeart, makeBee, updateBee };
+  const DASHER_DETECT_DIST = 200;
+  const DASHER_CHARGE_DURATION = 1.2;
+  const DASHER_COOLDOWN_DURATION = 1.0;
+
+  function makeDasher(x, y, leftBound, rightBound) {
+    return {
+      type: 'dasher',
+      x, y, w: 32, h: 34,
+      vx: 1,
+      baseSpeed: 1,
+      leftBound, rightBound,
+      alive: true,
+      squashTimer: 0,
+      state: 'PATROL',
+      stateMs: 0,
+    };
+  }
+
+  function updateDasher(d, dt, player) {
+    if (!d.alive) { d.squashTimer--; return; }
+    d.stateMs += dt;
+    const dx = (player.x + 13) - (d.x + d.w / 2);
+    const dist = Math.abs(dx);
+    let speed;
+    if (d.state === 'PATROL') {
+      speed = d.baseSpeed;
+      if (dist < DASHER_DETECT_DIST) {
+        d.state = 'CHARGING';
+        d.stateMs = 0;
+        d.vx = Math.sign(dx) * d.baseSpeed * 3 || d.baseSpeed * 3;
+      }
+    } else if (d.state === 'CHARGING') {
+      speed = d.baseSpeed * 3;
+      if (d.stateMs >= DASHER_CHARGE_DURATION) {
+        d.state = 'COOLDOWN';
+        d.stateMs = 0;
+        d.vx = Math.sign(d.vx) * d.baseSpeed;
+      }
+    } else {
+      speed = d.baseSpeed * 0.5;
+      if (d.stateMs >= DASHER_COOLDOWN_DURATION) {
+        d.state = 'PATROL';
+        d.stateMs = 0;
+      }
+    }
+    const sign = d.vx >= 0 ? 1 : -1;
+    d.x += sign * speed;
+    if (d.x < d.leftBound)         { d.x = d.leftBound;        d.vx = Math.abs(d.vx); }
+    if (d.x + d.w > d.rightBound)  { d.x = d.rightBound - d.w; d.vx = -Math.abs(d.vx); }
+  }
+
+  const API = { makePlayer, makeSlime, updateSlime, makeHeart, makeBee, updateBee, makeDasher, updateDasher };
   if (typeof module !== 'undefined') module.exports = API;
   else global.Entities = API;
 })(typeof window !== 'undefined' ? window : globalThis);
