@@ -109,7 +109,16 @@
     if (d.x + d.w > d.rightBound)  { d.x = d.rightBound - d.w; d.vx = -Math.abs(d.vx); }
   }
 
-  const API = { makePlayer, makeSlime, updateSlime, makeHeart, makeBee, updateBee, makeDasher, updateDasher };
+  function makeShield(x, y)   { return { type: 'shield',   x, y, taken: false }; }
+  function makeJumpBoot(x, y) { return { type: 'jumpboot', x, y, taken: false }; }
+
+  function applyShield(p)     { p.shield = true; }
+  function consumeShield(p)   { if (p.shield) { p.shield = false; return true; } return false; }
+
+  function applyJumpBoot(p)   { p.jumpBootMs = 10000; }
+  function tickJumpBoot(p, dt) { p.jumpBootMs = Math.max(0, p.jumpBootMs - dt * 1000); }
+
+  const API = { makePlayer, makeSlime, updateSlime, makeHeart, makeBee, updateBee, makeDasher, updateDasher, makeShield, makeJumpBoot, applyShield, consumeShield, applyJumpBoot, tickJumpBoot };
   if (typeof module !== 'undefined') module.exports = API;
   else global.Entities = API;
 })(typeof window !== 'undefined' ? window : globalThis);

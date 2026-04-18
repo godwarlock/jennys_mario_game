@@ -105,3 +105,49 @@ test('updateDasher CHARGING moves at 3x baseSpeed', () => {
   Entities.updateDasher(d, 0.016, { x: 300, y: 200 });
   assert(d.x - x0 >= 2.9 && d.x - x0 <= 3.1, `expected ~3 px movement, got ${d.x - x0}`);
 });
+
+test('makeShield creates untaken pickup', () => {
+  const s = Entities.makeShield(100, 200);
+  assert.strictEqual(s.type, 'shield');
+  assert.strictEqual(s.taken, false);
+});
+
+test('applyShield sets player.shield true', () => {
+  const p = Entities.makePlayer(0, 0);
+  Entities.applyShield(p);
+  assert.strictEqual(p.shield, true);
+});
+
+test('consumeShield returns true when shield active and clears it', () => {
+  const p = Entities.makePlayer(0, 0);
+  p.shield = true;
+  const consumed = Entities.consumeShield(p);
+  assert.strictEqual(consumed, true);
+  assert.strictEqual(p.shield, false);
+});
+
+test('consumeShield returns false when no shield', () => {
+  const p = Entities.makePlayer(0, 0);
+  assert.strictEqual(Entities.consumeShield(p), false);
+});
+
+test('makeJumpBoot creates untaken pickup', () => {
+  const j = Entities.makeJumpBoot(100, 200);
+  assert.strictEqual(j.type, 'jumpboot');
+  assert.strictEqual(j.taken, false);
+});
+
+test('applyJumpBoot sets 10 seconds remaining', () => {
+  const p = Entities.makePlayer(0, 0);
+  Entities.applyJumpBoot(p);
+  assert.strictEqual(p.jumpBootMs, 10000);
+});
+
+test('tickJumpBoot decreases jumpBootMs and clamps at 0', () => {
+  const p = Entities.makePlayer(0, 0);
+  p.jumpBootMs = 500;
+  Entities.tickJumpBoot(p, 0.3);
+  assert.strictEqual(p.jumpBootMs, 200);
+  Entities.tickJumpBoot(p, 10);
+  assert.strictEqual(p.jumpBootMs, 0);
+});
