@@ -684,12 +684,51 @@
     FX.drawFlash(ctx, state.flash, W, H);
   }
 
+  function handleMenuKeys() {
+    if (state.mode === 'MENU') {
+      if (keyJustPressed['arrowdown'] || keyJustPressed['s']) state.highlightIndex = Math.min(1, state.highlightIndex + 1);
+      if (keyJustPressed['arrowup']   || keyJustPressed['w']) state.highlightIndex = Math.max(0, state.highlightIndex - 1);
+      if (keyJustPressed['enter'] || keyJustPressed[' ']) {
+        if (state.highlightIndex === 0) startLevel(1);
+        else if (state.highlightIndex === 1 && state.save.unlocked > 1) {
+          state.mode = 'SELECT'; state.highlightIndex = 0;
+        }
+      }
+    } else if (state.mode === 'SELECT') {
+      if (keyJustPressed['arrowright'] || keyJustPressed['d']) state.highlightIndex = Math.min(3, state.highlightIndex + 1);
+      if (keyJustPressed['arrowleft']  || keyJustPressed['a']) state.highlightIndex = Math.max(0, state.highlightIndex - 1);
+      if (keyJustPressed['escape']) { state.mode = 'MENU'; state.highlightIndex = 0; }
+      if (keyJustPressed['enter'] || keyJustPressed[' ']) {
+        if (state.highlightIndex < 3) {
+          if (state.save.unlocked >= state.highlightIndex + 1) startLevel(state.highlightIndex + 1);
+        } else {
+          state.mode = 'MENU'; state.highlightIndex = 0;
+        }
+      }
+    } else if (state.mode === 'PAUSED') {
+      if (keyJustPressed['escape'] || keyJustPressed['p']) { state.mode = 'PLAYING'; state.lastFrameMs = performance.now(); }
+    } else if (state.mode === 'WIN' || state.mode === 'LOSE') {
+      const n = (state.mode === 'WIN') ? 3 : 2;
+      if (keyJustPressed['arrowright'] || keyJustPressed['d']) state.highlightIndex = Math.min(n-1, state.highlightIndex + 1);
+      if (keyJustPressed['arrowleft']  || keyJustPressed['a']) state.highlightIndex = Math.max(0, state.highlightIndex - 1);
+      if (keyJustPressed['enter'] || keyJustPressed[' '] || keyJustPressed['r']) {
+        if (state.mode === 'WIN') {
+          if (state.highlightIndex === 0) startLevel(state.currentLevel < 3 ? state.currentLevel + 1 : 3);
+          else if (state.highlightIndex === 1) { state.mode = 'SELECT'; state.highlightIndex = 0; }
+          else state.mode = 'MENU';
+        } else {
+          if (state.highlightIndex === 0) startLevel(state.currentLevel);
+          else state.mode = 'MENU';
+        }
+      }
+    }
+  }
+
   function loop(now) {
     const dt = Math.min(0.05, (now - state.lastFrameMs) / 1000);
     state.lastFrameMs = now;
-
+    handleMenuKeys();
     if (state.mode === 'PLAYING') updatePlaying(dt);
-
     render();
     keyJustPressed = {};
     requestAnimationFrame(loop);
