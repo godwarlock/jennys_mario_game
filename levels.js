@@ -115,10 +115,66 @@
     };
   }
 
+  function buildLevel3() {
+    const groundY = H - TILE * 2;
+    const platforms = [
+      { x: 0,    y: groundY, w: 500,  h: TILE * 2 },
+      { x: 640,  y: groundY, w: 400,  h: TILE * 2 },
+      { x: 1180, y: groundY, w: 500,  h: TILE * 2 },
+      { x: 1820, y: groundY, w: 400,  h: TILE * 2 },
+      { x: 2360, y: groundY, w: 1840, h: TILE * 2 },
+      { x: 180,  y: groundY - 130, w: 96,  h: 24, brick: true },
+      { x: 360,  y: groundY - 200, w: 96,  h: 24, brick: true },
+      { x: 720,  y: groundY - 150, w: 128, h: 24, brick: true },
+      { x: 900,  y: groundY - 230, w: 96,  h: 24, brick: true },
+      { x: 1240, y: groundY - 160, w: 128, h: 24, brick: true },
+      { x: 1440, y: groundY - 240, w: 96,  h: 24, brick: true },
+      { x: 1620, y: groundY - 160, w: 96,  h: 24, brick: true },
+      { x: 1900, y: groundY - 220, w: 128, h: 24, brick: true },
+      { x: 2100, y: groundY - 300, w: 96,  h: 24, brick: true },
+      { x: 2400, y: groundY - 160, w: 128, h: 24, brick: true },
+      { x: 2620, y: groundY - 240, w: 96,  h: 24, brick: true },
+      { x: 2840, y: groundY - 180, w: 128, h: 24, brick: true },
+      { x: 3080, y: groundY - 260, w: 96,  h: 24, brick: true },
+      { x: 3300, y: groundY - 200, w: 128, h: 24, brick: true },
+      { x: 3550, y: groundY - 280, w: 96,  h: 24, brick: true },
+      { x: 3800, y: groundY - 220, w: 128, h: 24, brick: true },
+    ];
+    const heartCoords = [
+      [200, groundY-170],[380, groundY-240],[750, groundY-190],[920, groundY-270],[1270, groundY-200],
+      [1460, groundY-280],[1650, groundY-200],[1930, groundY-260],[2120, groundY-340],[2430, groundY-200],
+      [2470, groundY-200],[2650, groundY-280],[2870, groundY-220],[2910, groundY-220],[3100, groundY-300],
+      [3330, groundY-240],[3370, groundY-240],[3570, groundY-320],[3610, groundY-320],[3820, groundY-260],
+      [3860, groundY-260],[3900, groundY-260],
+    ];
+    const hearts = heartCoords.map(([x,y]) => Entities.makeHeart(x, y));
+    const enemies = [
+      Entities.makeSlime(1400, groundY-30, 1200, 1650),
+      Entities.makeSlime(2500, groundY-30, 2380, 2700),
+      Entities.makeSlime(3500, groundY-30, 3350, 3700),
+      Entities.makeBee(800,  groundY - 200, 700,  1050),
+      Entities.makeBee(2000, groundY - 230, 1900, 2200),
+      Entities.makeBee(3200, groundY - 240, 3100, 3500),
+      Entities.makeDasher(1300, groundY-34, 1200, 1650),
+      Entities.makeDasher(2550, groundY-34, 2400, 2800),
+      Entities.makeDasher(3700, groundY-34, 3500, 3900),
+    ];
+    const pickups = [ Entities.makeJumpBoot(2050, groundY - 340) ];
+    return {
+      name: '城堡', theme: 'castle',
+      width: 4200, groundY,
+      platforms, hearts, enemies, pickups,
+      flag: { x: 4100, y: groundY - 160 },
+      clouds: makeClouds(4200),
+      flowers: makeFlowers(4200, groundY),
+    };
+  }
+
   function build(n) {
     if (n === 1) return buildLevel1();
     if (n === 2) return buildLevel2();
-    throw new Error(`Level ${n} not implemented yet`);
+    if (n === 3) return buildLevel3();
+    throw new Error(`Invalid level ${n}`);
   }
 
   const LEVELS = [
